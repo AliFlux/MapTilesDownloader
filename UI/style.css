@@ -1,0 +1,176 @@
+html, body {
+	height: 100%;
+	margin: 0px;
+	padding: 0px; 
+	font-family: 'Open Sans';
+	overflow: hidden;
+}
+
+#max-height {
+	/*height: calc(100% - 120px);*/
+	height: 100%;
+	width: calc(100% - 300px);
+	display: inline-block;
+	position: relative;
+}
+
+.sidebar {
+	width: 300px;
+	height: calc(100% - 120px);
+	height: 100%;
+	position: absolute;
+	top: 0px;
+	right: 0px;
+	padding: 20px;
+	border-left: 5px solid #f1f2f6;
+}
+
+.bottom-button {
+	position: absolute;
+	bottom:15px;
+	left: 0px;
+	right: 0px;
+	width: 90%;
+	margin: auto;
+	display: block;
+}
+
+#stop-button {
+	color: black !important;
+}
+
+#map-view {
+	width: 100%;
+	height: 100%;
+}
+
+#main-title {
+	font-size: 35px;
+	font-weight: 700;
+	font-family: 'Open Sans';
+	color: white;
+	position: absolute;
+	top: 18px;
+	left: 30px;
+	z-index: 10000000000000000;
+	text-transform: uppercase;
+	text-shadow: 0px 3px 15px rgb(0, 0, 0);
+	letter-spacing: 2px;
+}
+
+.step-number {
+	font-weight: 600;
+	font-size: 20px;
+	display: inline-block;
+
+	padding-top: 2px;
+	margin-left: -40px;
+	margin-right: 12px;
+	background: #00cec9;
+	width: 35px;
+	height: 35px;
+	text-align: center;
+	border-radius: 10000px;
+	color: white;
+}
+
+.step-title {
+	font-weight: 600;
+	font-size: 20px;
+	display: inline-block;
+}
+
+.step-title a {
+	color: black !important;
+}
+
+hr {
+	opacity: 0.3;
+}
+
+.hints {
+	opacity: 0.5;
+	margin-left: 10px;
+}
+
+.input-field {
+    /*margin-top: 0.25rem;*/
+    /*margin-bottom: 0.25rem;*/
+}
+
+.row {
+    margin-bottom: 5px;
+}
+
+#sources {
+	width: 250px;
+}
+
+#sources li {
+	min-height: auto;
+}
+
+#sources li a {
+	font-size: 14px;
+	padding-top: 10px;
+	padding-bottom: 10px;
+}
+
+#source-select {
+	font-size: 20px;
+	padding-left: 10px;
+	padding-right: 10px;
+}
+
+.mapboxgl-ctrl-geocoder {
+	display: none !important;
+}
+
+.mapbox-gl-draw_ctrl-draw-btn {
+	display: none !important;
+}
+
+#progress-radial {
+	width: 70%;
+	margin: auto;
+	margin-top: 20px;
+}
+
+#progress-radial .progressbar-text {
+	font-size: 30px;
+	margin-top: -5px !important;
+}
+
+#progress-radial .progressbar-text span {
+	opacity: 0.5;
+}
+
+.tile-strip {
+	height: 50px;
+}
+
+.tile-strip img {
+	width: 51px;
+	height: 51px;
+	padding: 1px;
+}
+
+#progress-subtitle {
+	font-weight: 600;
+	font-size: 16px;
+	text-align: center;
+}
+
+#progress-subtitle span {
+	opacity: 0.5;
+}
+
+#log-view {
+	height: calc(100% - 450px);
+	border: 1px solid #cfd8dc;
+
+
+	white-space: pre;
+	overflow-wrap: normal;
+	overflow-x: scroll;
+}

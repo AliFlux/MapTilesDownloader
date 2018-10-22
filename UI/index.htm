@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Map Tiles Downloader</title>
+	<meta charset="utf-8"/>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+
+	<script src="jquery.min.js"></script>
+
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.css' rel='stylesheet' />
+
+	<script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v2.3.0/mapbox-gl-geocoder.min.js'></script>
+	<script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.0.9/mapbox-gl-draw.js'></script>
+	<script src='mapbox-gl-draw-rectangle-mode.min.js'></script>
+	<link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.0.9/mapbox-gl-draw.css' type='text/css'/>
+
+	<script src='https://rawgit.com/kimmobrunfeldt/progressbar.js/1.0.0/dist/progressbar.js'></script>
+
+	<script src="async.min.js"></script>
+	<script src="turf.min.js"></script>
+
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,600,600i,700,700i" rel="stylesheet"> 
+	<script src="materialize/js/materialize.min.js"></script>
+	<link href='materialize/css/materialize.min.css' rel='stylesheet' type='text/css' />
+
+	<script src="main.js"></script>
+	<link href='fonts/fonts.css' rel='stylesheet' type='text/css' />
+	<link href='style.css' rel='stylesheet' type='text/css' />
+</head>
+<body>
+
+	<div id='max-height'>
+		
+		<div id='map-view'></div>
+
+		<div id='main-title'>Map Tiles Downloader</div>
+
+	</div>
+
+	<div class='sidebar' id='main-sidebar'>
+
+		<div class='step-number'>
+			1
+		</div>
+		<div class="step-title">
+			Search an Area
+		</div>
+
+		<form id='search-form'>
+			<p class="input-field col s12">
+				<input id="location-box" type="text" value="New York" />
+				<label for="location-box">Enter a location</label>
+			</p>
+		</form>
+
+
+		<div class='step-number'>
+			2
+		</div>
+		<div class="step-title">
+			Select a Region
+		</div>
+
+		<p class='center-align'>
+			<a class="waves-effect waves-light z-depth-0 btn-small orange darken-3" id='rectangle-draw-button'>Draw a rectangle</a>
+		</p>
+
+		<div class='step-number'>
+			3
+		</div>
+		<div class="step-title">
+			Configure
+		</div>
+
+		<p>
+			<div class="row">
+				<div class="input-field col s6">
+					<input id="zoom-from-box" type="text" value='15'/>
+					<label for="zoom-from-box" class="active">Zoom from:</label>
+				</div>
+				<div class="input-field col s6">
+					<input id="zoom-to-box" type="text" value='15'/>
+					<label for="zoom-to-box" class="active">Zoom to:</label>
+				</div>
+			</div>
+
+
+			<div class="row">
+				<div class="input-field col s10">
+					<input id="source-box" type="text" value='http://ecn.t0.tiles.virtualearth.net/tiles/a{quad}.jpeg?g=129&mkt=en&stl=H'>
+					<label for="source-box">Map Tile Source</label>
+				</div>
+				<div class="input-field col s2">
+					<a class='waves-effect waves-light btn-small blue-grey lighten-2 z-depth-0 dropdown-trigger' id='source-select' href='#' data-target='sources'>⯆</a>
+
+					<ul id='sources' class='dropdown-content'>
+					</ul>
+				</div>
+			</div>
+
+			<div class='center-align'>
+				<a class="waves-effect waves-light z-depth-0 btn-small orange darken-3" id='grid-preview-button'>Preview Grid</a>
+			</div>
+
+		</p>
+
+		<div class='step-number'>
+			4
+		</div>
+		<div class="step-title">
+			<a href='javascript:void(0)' id='more-options-toggle'>More Options (+)</a>
+		</div>
+
+		<div style='display:none;' id='more-options'>
+			<p class="input-field col s12">
+				<input id="output-directory-box" type="text" value="{timestamp}">
+				<label for="output-directory-box">Output directory</label>
+			</p>
+
+			<p class="input-field col s12">
+				<input id="output-file-box" type="text" value="{x}-{y}-{z}.png">
+				<label for="output-file-box">Output file</label>
+			</p>
+
+			<p class="input-field col s12">
+				<input id="parallel-threads-box" type="text" value="4">
+				<label for="parallel-threads-box">Parallel downloads</label>
+			</p>
+		</div>
+
+		<button class='waves-effect waves-light z-depth-0 btn-large cyan darken-2 bottom-button' id='download-button'>Download</button>
+
+	</div>
+
+	<div class='sidebar' id='download-sidebar' style="display: none;">
+
+		<div class='step-number'>
+			5
+		</div>
+		<div class="step-title">
+			Downloading tiles
+		</div>
+		<div class="hints">
+			Please wait...
+		</div>
+
+		<p id='progress-radial'>
+
+		</p>
+
+		<p id='progress-subtitle'>
+
+		</p>
+
+		<p class='tile-strip'>
+		</p>
+
+		<textarea id='log-view'></textarea>
+
+		<button class='waves-effect waves-light z-depth-0 btn-large red lighten-5 bottom-button' id='stop-button'>Stop</button>
+
+	</div>
+
+</body>
+</html>
