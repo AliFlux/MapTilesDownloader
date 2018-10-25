@@ -16,7 +16,7 @@ This tiny python based script allows you to download map tiles from Google, Bing
 python server.py
 ```
 
-If your web browser doesn't open a map afterwards, navigate to `UI\index.htm` and open it manually.
+If your web browser doesn't open a map afterwards, navigate to `UI\index.htm` and open it manually. The output tiles will be in the `output\{timestamp}\` directory by default.
 
 ## Requirements
 
