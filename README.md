@@ -2,6 +2,9 @@
 
 **A super easy to use GUI for downloading map tiles**
 
+<p align="center">
+  <img src="gif/map-tiles-downloader.gif">
+</p>
 
 ## So what does it do?
 
@@ -31,7 +34,7 @@ I design map related things as a hobby, and often I have to work with offline ma
 - Select multiple zoom levels in one go
 - Ability to ignore tiles already downloaded
 - Specify any custom file name format
-- Supports ANY tile provider as long as it has `x`, `y`, `z`, or `quad` in it
+- Supports ANY tile provider as long as the url has `x`, `y`, `z`, or `quad` in it
 - Built using MapBox :heart:
 
 ## Important Disclaimer
