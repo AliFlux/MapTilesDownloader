@@ -44,7 +44,7 @@ $(function() {
 
 	function initializeMap() {
 
-		mapboxgl.accessToken = 'pk.eyJ1IjoiYWxpYXNocmFmIiwiYSI6ImNqbmlrbThoYjBuamIzcG8zdXl6NG1qNm4ifQ.XPbRBbMekHi2L9aJ_H3Yqw';
+		mapboxgl.accessToken = 'pk.eyJ1IjoiYWxpYXNocmFmIiwiYSI6ImNqdXl5MHV5YTAzNXI0NG51OWFuMGp4enQifQ.zpd2gZFwBTRqiapp1yci9g';
 
 		map = new mapboxgl.Map({
 			container: 'map-view',
