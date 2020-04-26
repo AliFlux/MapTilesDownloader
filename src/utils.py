@@ -47,9 +47,9 @@ class Utils:
 			bit = level - i
 			digit = ord('0')
 			mask = 1 << (bit - 1)  # if (bit - 1) > 0 else 1 >> (bit - 1)
-			if (tile_x & mask) is not 0:
+			if (tile_x & mask) != 0:
 				digit += 1
-			if (tile_y & mask) is not 0:
+			if (tile_y & mask) != 0:
 				digit += 2
 			quadkey += chr(digit)
 		return quadkey
