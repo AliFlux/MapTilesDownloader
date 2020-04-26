@@ -16,7 +16,7 @@ $(function() {
 		"Bing Maps Satellite": "http://ecn.t0.tiles.virtualearth.net/tiles/a{quad}.jpeg?g=129&mkt=en&stl=H",
 		"Bing Maps Hybrid": "http://ecn.t0.tiles.virtualearth.net/tiles/h{quad}.jpeg?g=129&mkt=en&stl=H",
 
-		"div-1": "",
+		"div-1B": "",
 
 		"Google Maps": "https://mt0.google.com/vt?lyrs=m&x={x}&s=&y={y}&z={z}",
 		"Google Maps Satellite": "https://mt0.google.com/vt?lyrs=s&x={x}&s=&y={y}&z={z}",
@@ -48,7 +48,7 @@ $(function() {
 
 		map = new mapboxgl.Map({
 			container: 'map-view',
-			style: 'mapbox://styles/mapbox/satellite-v9',
+			style: 'mapbox://styles/aliashraf/ck6lw9nr80lvo1ipj8zovttdx',
 			center: [-73.983652, 40.755024], 
 			zoom: 12
 		});
@@ -102,6 +102,18 @@ $(function() {
 
 		$("#more-options-toggle").click(function() {
 			$("#more-options").toggle();
+		})
+
+		var outputFileBox = $("#output-file-box")
+		$("#output-type").change(function() {
+			var outputType = $("#output-type").val();
+			if(outputType == "mbtiles") {
+				outputFileBox.val("tiles.mbtiles")
+			} else if(outputType == "repo") {
+				outputFileBox.val("tiles.repo")
+			} else if(outputType == "directory") {
+				outputFileBox.val("{z}/{x}/{y}.png")
+			}
 		})
 
 	}
@@ -232,7 +244,7 @@ $(function() {
 		return false;
 	}
 
-	function getGrid(zoomLevel) {
+	function getBounds() {
 
 		var coordinates = draw.getAll().features[0].geometry.coordinates[0];
 
@@ -240,23 +252,34 @@ $(function() {
 			return bounds.extend(coord);
 		}, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
 
+		return bounds;
+	}
+
+	function getGrid(zoomLevel) {
+
+		var bounds = getBounds();
+
 		var rects = [];
 
-		var TY    = lat2tile(bounds.getNorthEast().lat, zoomLevel);
-		var LX   = long2tile(bounds.getSouthWest().lng, zoomLevel);
-		var BY = lat2tile(bounds.getSouthWest().lat, zoomLevel);
-		var RX  = long2tile(bounds.getNorthEast().lng, zoomLevel);
+		var outputScale = $("#output-scale").val();
+		//var thisZoom = zoomLevel - (outputScale-1)
+		var thisZoom = zoomLevel
+
+		var TY    = lat2tile(bounds.getNorthEast().lat, thisZoom);
+		var LX   = long2tile(bounds.getSouthWest().lng, thisZoom);
+		var BY = lat2tile(bounds.getSouthWest().lat, thisZoom);
+		var RX  = long2tile(bounds.getNorthEast().lng, thisZoom);
 
 		for(var y = TY; y <= BY; y++) {
 			for(var x = LX; x <= RX; x++) {
 
-				var rect = getTileRect(x, y, zoomLevel);
+				var rect = getTileRect(x, y, thisZoom);
 
 				if(isTileInSelection(rect)) {
 					rects.push({
 						x: x,
 						y: y,
-						zoom: zoomLevel,
+						z: thisZoom,
 						rect: rect,
 					});
 				}
@@ -272,7 +295,7 @@ $(function() {
 
 		for(var z = getMinZoom(); z <= getMaxZoom(); z++) {
 			var grid = getGrid(z);
-			// TODO shuffle grid via a heuristic
+			// TODO shuffle grid via a heuristic (hamlet curve? :/)
 			allTiles = allTiles.concat(grid);
 		}
 
@@ -400,7 +423,7 @@ $(function() {
 		strip.prepend(image)
 	}
 
-	function startDownloading() {
+	async function startDownloading() {
 
 		if(draw.getAll().features.length == 0) {
 			M.toast({html: 'You need to select a region first.', displayLength: 3000})
@@ -426,7 +449,36 @@ $(function() {
 		var numThreads = parseInt($("#parallel-threads-box").val());
 		var outputDirectory = $("#output-directory-box").val();
 		var outputFile = $("#output-file-box").val();
+		var outputType = $("#output-type").val();
+		var outputScale = $("#output-scale").val();
 		var source = $("#source-box").val()
+
+		var bounds = getBounds();
+		var boundsArray = [bounds.getSouthWest().lng, bounds.getSouthWest().lat, bounds.getNorthEast().lng, bounds.getNorthEast().lat]
+		var centerArray = [bounds.getCenter().lng, bounds.getCenter().lat, getMaxZoom()]
+		
+		var data = new FormData();
+		data.append('minZoom', getMinZoom())
+		data.append('maxZoom', getMaxZoom())
+		data.append('outputDirectory', outputDirectory)
+		data.append('outputFile', outputFile)
+		data.append('outputType', outputType)
+		data.append('outputScale', outputScale)
+		data.append('source', source)
+		data.append('timestamp', timestamp)
+		data.append('bounds', boundsArray.join(","))
+		data.append('center', centerArray.join(","))
+
+		var request = await $.ajax({
+			url: "/start-download",
+			async: true,
+			timeout: 30 * 1000,
+			type: "post",
+			contentType: false,
+			processData: false,
+			data: data,
+			dataType: 'json',
+		})
 
 		let i = 0;
 		var iterator = async.eachLimit(allTiles, numThreads, function(item, done) {
@@ -437,17 +489,21 @@ $(function() {
 
 			var boxLayer = previewRect(item);
 
-			var url = "http://127.0.0.1:11291/download-tile";
+			var url = "/download-tile";
 
 			var data = new FormData();
 			data.append('x', item.x)
 			data.append('y', item.y)
-			data.append('z', item.zoom)
-			data.append('quad', generateQuadKey(item.x, item.y, item.zoom))
+			data.append('z', item.z)
+			data.append('quad', generateQuadKey(item.x, item.y, item.z))
 			data.append('outputDirectory', outputDirectory)
 			data.append('outputFile', outputFile)
+			data.append('outputType', outputType)
+			data.append('outputScale', outputScale)
 			data.append('timestamp', timestamp)
 			data.append('source', source)
+			data.append('bounds', boundsArray.join(","))
+			data.append('center', centerArray.join(","))
 
 			var request = $.ajax({
 				"url": url,
@@ -466,9 +522,9 @@ $(function() {
 
 				if(data.code == 200) {
 					showTinyTile(data.image)
-					logItem(item.x, item.y, item.zoom, data.message);
+					logItem(item.x, item.y, item.z, data.message);
 				} else {
-					logItem(item.x, item.y, item.zoom, data.code + " Error downloading tile");
+					logItem(item.x, item.y, item.z, data.code + " Error downloading tile");
 				}
 
 			}).fail(function(data, textStatus, errorThrown) {
@@ -477,7 +533,7 @@ $(function() {
 					return;
 				}
 
-				logItem(item.x, item.y, item.zoom, "Error while relaying tile");
+				logItem(item.x, item.y, item.z, "Error while relaying tile");
 				//allTiles.push(item);
 
 			}).always(function(data) {
@@ -495,7 +551,19 @@ $(function() {
 
 			requests.push(request);
 
-		}, function(err) {
+		}, async function(err) {
+
+			var request = await $.ajax({
+				url: "/end-download",
+				async: true,
+				timeout: 30 * 1000,
+				type: "post",
+				contentType: false,
+				processData: false,
+				data: data,
+				dataType: 'json',
+			})
+
 			updateProgress(allTiles.length, allTiles.length);
 			logItemRaw("All requests are done");
 
@@ -548,7 +616,6 @@ $(function() {
 		clearLogs();
 
 	}
-
 
 	initializeMaterialize();
 	initializeSources();

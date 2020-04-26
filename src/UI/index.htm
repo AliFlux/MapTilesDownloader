@@ -5,7 +5,8 @@
 	<meta charset="utf-8"/>
     <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
 
-	<script src="jquery.min.js"></script>
+	<!-- TODO replace jquery with react -->
+	<script src="jquery.min.js"></script> 
 
     <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.js'></script>
     <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.css' rel='stylesheet' />
@@ -47,11 +48,11 @@
 			Search an Area
 		</div>
 
-		<form id='search-form'>
-			<p class="input-field col s12">
+		<form id='search-form' class='sidebar-section row'>
+			<div class="input-field col s12">
 				<input id="location-box" type="text" value="New York" />
 				<label for="location-box">Enter a location</label>
-			</p>
+			</div>
 		</form>
 
 
@@ -62,9 +63,11 @@
 			Select a Region
 		</div>
 
-		<p class='center-align'>
-			<a class="waves-effect waves-light z-depth-0 btn-small orange darken-3" id='rectangle-draw-button'>Draw a rectangle</a>
-		</p>
+		<div class='center-align sidebar-section'>
+			<p>
+				<a class="waves-effect waves-light z-depth-0 btn-small orange darken-3" id='rectangle-draw-button'>Draw a rectangle</a>
+			</p>
+		</div>
 
 		<div class='step-number'>
 			3
@@ -73,7 +76,7 @@
 			Configure
 		</div>
 
-		<p>
+		<div class='sidebar-section'>
 			<div class="row">
 				<div class="input-field col s6">
 					<input id="zoom-from-box" type="text" value='15'/>
@@ -103,7 +106,7 @@
 				<a class="waves-effect waves-light z-depth-0 btn-small orange darken-3" id='grid-preview-button'>Preview Grid</a>
 			</div>
 
-		</p>
+		</div>
 
 		<div class='step-number'>
 			4
@@ -112,21 +115,39 @@
 			<a href='javascript:void(0)' id='more-options-toggle'>More Options (+)</a>
 		</div>
 
-		<div style='display:none;' id='more-options'>
-			<p class="input-field col s12">
+		<div style='display:none;' id='more-options' class='sidebar-section row'>
+
+			<div class="input-field col s12">
+				<select id="output-scale" type="text">
+					<option value="1">1x</option>
+					<option value="2">2x</option>
+				</select>
+				<label for="output-scale">Output scale</label>
+			</div>
+
+			<div class="input-field col s12">
 				<input id="output-directory-box" type="text" value="{timestamp}">
 				<label for="output-directory-box">Output directory</label>
-			</p>
+			</div>
 
-			<p class="input-field col s12">
-				<input id="output-file-box" type="text" value="{x}-{y}-{z}.png">
+			<div class="input-field col s12">
+				<select id="output-type" type="text">
+					<option value="directory">Directory</option>
+					<option value="mbtiles">Mbtiles</option>
+					<option value="repo">Repo</option>
+				</select>
+				<label for="output-type">Output type</label>
+			</div>
+
+			<div class="input-field col s12">
+				<input id="output-file-box" type="text" value="{z}/{x}/{y}.png">
 				<label for="output-file-box">Output file</label>
-			</p>
+			</div>
 
-			<p class="input-field col s12">
+			<div class="input-field col s12">
 				<input id="parallel-threads-box" type="text" value="4">
 				<label for="parallel-threads-box">Parallel downloads</label>
-			</p>
+			</div>
 		</div>
 
 		<button class='waves-effect waves-light z-depth-0 btn-large cyan darken-2 bottom-button' id='download-button'>Download</button>
@@ -141,22 +162,25 @@
 		<div class="step-title">
 			Downloading tiles
 		</div>
-		<div class="hints">
+		<div class="hints sidebar-section">
 			Please wait...
 		</div>
 
-		<p id='progress-radial'>
+		<div class="sidebar-section">
+			<div id='progress-radial' class=''>
+	
+			</div>
+	
+			<p id='progress-subtitle' class=''>
+	
+			</p>
+	
+			<p class='tile-strip '>
+			</p>
 
-		</p>
-
-		<p id='progress-subtitle'>
-
-		</p>
-
-		<p class='tile-strip'>
-		</p>
-
-		<textarea id='log-view'></textarea>
+		</div>
+	
+		<textarea id='log-view' class="sidebar-section"></textarea>
 
 		<button class='waves-effect waves-light z-depth-0 btn-large red lighten-5 bottom-button' id='stop-button'>Stop</button>
 
