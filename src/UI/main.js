@@ -586,10 +586,13 @@ $(function() {
 	}
 
 	function logItemRaw(text) {
-
 		var logger = $('#log-view');
-		logger.val(logger.val() + '\n' + text);
-
+		var value = logger.val() + '\n' + text;
+		var maxLength = 10000;
+		if(value.length > maxLength){
+		value = value.substring(value.length - maxLength, value.length);
+		}
+		logger.val(value);
 		logger.scrollTop(logger[0].scrollHeight);
 	}
 
