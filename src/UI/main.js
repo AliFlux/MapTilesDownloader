@@ -544,6 +544,9 @@ $(function() {
 
 				done();
 				
+				var removeIndex = requests.indexOf(request);
+				if(removeIndex >= 0) requests.splice(removeIndex, 1);
+
 				if(cancellationToken) {
 					return;
 				}
