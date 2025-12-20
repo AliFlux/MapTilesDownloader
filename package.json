@@ -1,0 +1,55 @@
+{
+  "name": "create-svelte-electron-app",
+  "version": "1.2.0",
+  "description": "The boilerplate code to get started creating Cross-platform Desktop Apps with Electron and Svelte as front-end technology.",
+  "private": false,
+  "license": "MIT",
+  "main": "main.js",
+  "author": "Souleh Shaikh <soulehshaikh99@gmail.com>",
+  "build": {
+    "icon": "public/favicon.png",
+    "productName": "Svelte and Electron App",
+    "files": [
+      "public/**/*",
+      "main.js",
+      "preload.js"
+    ],
+    "win": {},
+    "linux": {},
+    "mac": {}
+  },
+  "scripts": {
+    "build": "rollup -c --bundleConfigAsCjs",
+    "dev": "rollup -c -w --bundleConfigAsCjs",
+    "start": "sirv public --no-clear",
+    "electron": "wait-on http://localhost:8080 && electron .",
+    "electron-dev": "concurrently \"yarn run dev\" \"yarn run electron\"",
+    "preelectron-pack": "yarn run build",
+    "electron-pack": "electron-builder"
+  },
+  "dependencies": {
+    "@mdi/js": "^7.4.47",
+    "@smui/button": "^8.0.0-beta.0",
+    "@smui/common": "^8.0.0-beta.0",
+    "@smui/icon-button": "^8.0.0-beta.0",
+    "@smui/select": "^8.0.0-beta.0",
+    "@smui/textfield": "^8.0.0-beta.0",
+    "@zerodevx/svelte-toast": "^0.9.6",
+    "electron-serve": "^1.1.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^23.0.2",
+    "@rollup/plugin-node-resolve": "^15.0.1",
+    "@rollup/plugin-terser": "0.4.4",
+    "concurrently": "^7.5.0",
+    "electron": "^21.2.0",
+    "electron-builder": "^23.6.0",
+    "rollup": "^3.2.3",
+    "rollup-plugin-css-only": "^4.2.0",
+    "rollup-plugin-livereload": "^2.0.5",
+    "rollup-plugin-svelte": "^7.1.0",
+    "sirv-cli": "^2.0.2",
+    "svelte": "^3.52.0",
+    "wait-on": "^6.0.1"
+  }
+}

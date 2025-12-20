@@ -40,10 +40,9 @@ I design map related things as a hobby, and often I have to work with offline ma
 
 - Super easy to use map UI to select region and options
 - Multi-threading to download tiles in parallel
-- Cross platform, use any OS as long as it has Python and a browser
-- Dockerfile available for easy setup
-- Supports 2x/Hi-Res/Retina/512x512 tiles my merging multiple tiles
-- Supports downloading to file as well as mbtile format
+- Cross platform, use any OS as long as it supports Electron
+- Supports 2x/Hi-Res/Retina/512x512 tiles by merging multiple tiles
+- Supports downloading to directory as well as mbtile format
 - Select multiple zoom levels in one go
 - Ability to ignore tiles already downloaded
 - Specify any custom file name format
@@ -63,4 +62,4 @@ For latest releases and announcements, check out my site: [aliashraf.net](http:/
 This software is released under the [MIT License](LICENSE). Please read LICENSE for information on the
 software availability and distribution.
 
-Copyright (c) 2020 [Ali Ashraf](http://aliashraf.net)
+Copyright (c) 2021 [Ali Ashraf](http://aliashraf.net)
