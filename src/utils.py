@@ -46,7 +46,7 @@ class Utils:
 		for i in range(level):
 			bit = level - i
 			digit = ord('0')
-			mask = 1 << (bit - 1)  # if (bit - 1) > 0 else 1 >> (bit - 1)
+			mask = 1 << (bit - 1)
 			if (tile_x & mask) != 0:
 				digit += 1
 			if (tile_y & mask) != 0:
@@ -67,10 +67,15 @@ class Utils:
 
 		scale22 = 23 - (z * 2)
 
+		# Pick a random subdomain for providers that use {s} (e.g. OSM, Stadia)
+		subdomains = ["a", "b", "c"]
+		subdomain = random.choice(subdomains)
+
 		replaceMap = {
 			"x": str(x),
 			"y": str(y),
 			"z": str(z),
+			"s": subdomain,
 			"scale:22": str(scale22),
 			"quad": Utils.makeQuadKey(x, y, z),
 		}
@@ -120,11 +125,21 @@ class Utils:
 		code = 0
 
 		# monkey patching SSL certificate issue
-		# DONT use it in a prod/sensitive environment
 		ssl._create_default_https_context = ssl._create_unverified_context
 
+		# Add a browser-like User-Agent so tile servers don't block the request
+		headers = {
+			"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+			"Accept": "image/png,image/*,*/*;q=0.8",
+			"Accept-Language": "en-US,en;q=0.9",
+			"Referer": "https://www.openstreetmap.org/",
+		}
+
 		try:
-			path, response = urllib.request.urlretrieve(url, destination)
+			req = urllib.request.Request(url, headers=headers)
+			with urllib.request.urlopen(req) as response:
+				with open(destination, "wb") as out_file:
+					out_file.write(response.read())
 			code = 200
 		except urllib.error.URLError as e:
 			if not hasattr(e, "code"):
@@ -165,10 +180,4 @@ class Utils:
 			canvas.save(destination, "PNG")
 			
 			return 200
-
-		#TODO implement custom scale
-
-			
-
-
-
+		
