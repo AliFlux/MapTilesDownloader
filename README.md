@@ -21,11 +21,18 @@ Then open up your web browser and navigate to `http://localhost:8080`. The outpu
 
 ## Requirements
 
-Needs **Python 3.13+**, [Pillow](https://pypi.org/project/Pillow/) library, and a modern web browser. If you can't install manually, try docker for easy setup.
+Needs **Python 3.13+** and a modern web browser. Install dependencies with:
 
 ```sh
 pip install -r requirements.txt
 ```
+
+| Package | Purpose |
+|---------|---------|
+| [Pillow](https://pypi.org/project/Pillow/) | Tile scaling (2x/Hi-Res output) |
+| [pyvips](https://pypi.org/project/pyvips/) | Tile stitching — memory-efficient image assembly |
+
+On Windows, `pyvips[binary]` bundles the required libvips DLLs automatically. On Linux/macOS, install libvips via your package manager (`apt install libvips` / `brew install vips`) before running pip.
 
 > **Note:** The `cgi` module was removed in Python 3.13. This repo has been updated to use the `email` module as a replacement. Python versions older than 3.13 are not tested with the current code.
 
@@ -56,6 +63,7 @@ I design map related things as a hobby, and often I have to work with offline ma
 - Specify any custom file name format
 - Supports ANY tile provider as long as the url has `x`, `y`, `z`, or `quad` in it
 - Base map uses OpenStreetMap (no API key required)
+- **Built-in tile stitcher** — assembles all downloaded tiles into a single GeoTIFF with one click, using [libvips](https://www.libvips.org/) for memory-efficient processing of very large images
 
 ## Tile Sources
 
@@ -94,18 +102,20 @@ Set **Zoom from** and **Zoom to** to the same value to download only that level.
 
 Tiles are saved to `src/output/{timestamp}/` by default, in `{z}/{x}/{y}.png` folder structure. Both the output directory and file name format can be customised under **More Options** in the UI.
 
-## Stitching Tiles in Photoshop
+## Stitching Tiles into a Single Image
 
-A Photoshop script is included at `src/stitch_tiles.jsx` that stitches a downloaded tile set into a single georeferenced TIFF.
+The downloader includes a built-in stitcher powered by [libvips](https://www.libvips.org/). Unlike Photoshop or Pillow, libvips processes images in strips rather than loading everything into RAM, so it handles multi-gigapixel outputs without running out of memory.
 
 **To use:**
-1. In Photoshop, go to **File → Scripts → Browse…**
-2. Select `src/stitch_tiles.jsx`
-3. When prompted, select the **timestamped folder** inside `output/` (e.g. `output/1745123456/`)
-4. If multiple zoom levels were downloaded, choose which one to stitch
-5. The stitched image is saved as `stitched_z{zoom}.tif` inside the same folder
+1. Check **Stitch tiles into image after download** (visible above the Download button — only enabled for Directory output type)
+2. Start the download as normal
+3. Once all tiles have downloaded, stitching begins automatically
+4. Progress is shown in the log panel; the button shows **STITCHING...** while it runs
+5. Output is saved alongside the tile folders as `stitched_z{zoom}.tif` — one file per zoom level
 
-> **Warning:** Large tile sets (zoom 18+ over a wide area) can produce multi-gigapixel images. The script will warn you before proceeding if the output exceeds 500 tiles or 500 megapixels.
+The output is a tiled, deflate-compressed TIFF compatible with GIS tools (QGIS, GDAL, ArcGIS) and image editors. For zoom ranges, a separate TIFF is produced for each zoom level.
+
+> **Note:** Stitching is only available when **Output type** is set to **Directory** (the default). MBTiles and Repo formats store tiles internally and don't produce individual image files to stitch from.
 
 ## Important Disclaimer
 

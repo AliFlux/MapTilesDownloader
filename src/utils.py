@@ -121,8 +121,18 @@ class Utils:
 		# DONT use it in a prod/sensitive environment
 		ssl._create_default_https_context = ssl._create_unverified_context
 
+		headers = {
+			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+			'Referer': 'https://www.google.com/maps/',
+			'Accept': 'image/avif,image/webp,image/png,image/*,*/*;q=0.8',
+			'Accept-Language': 'en-US,en;q=0.9',
+		}
+
 		try:
-			path, response = urllib.request.urlretrieve(url, destination)
+			req = urllib.request.Request(url, headers=headers)
+			with urllib.request.urlopen(req) as response:
+				with open(destination, 'wb') as f:
+					shutil.copyfileobj(response, f)
 			code = 200
 		except urllib.error.URLError as e:
 			if not hasattr(e, "code"):

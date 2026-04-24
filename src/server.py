@@ -30,7 +30,41 @@ from mbtiles_writer import MbtilesWriter
 from repo_writer import RepoWriter
 from utils import Utils
 
+try:
+    from stitch import Stitcher
+    STITCH_AVAILABLE = True
+except ImportError:
+    STITCH_AVAILABLE = False
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 lock = threading.Lock()
+
+stitch_job = {"state": "idle", "message": "", "files": []}
+stitch_job_lock = threading.Lock()
+
+
+def run_stitch(output_dir, min_zoom, max_zoom):
+    try:
+        files = []
+        for zoom in range(min_zoom, max_zoom + 1):
+            with stitch_job_lock:
+                stitch_job["state"] = "stitching"
+                stitch_job["message"] = f"Stitching zoom level {zoom}..."
+
+            path = Stitcher.stitch_zoom_level(output_dir, zoom)
+            if path:
+                files.append(path)
+
+        with stitch_job_lock:
+            stitch_job["state"] = "done"
+            stitch_job["message"] = f"Stitched {len(files)} zoom level(s)"
+            stitch_job["files"] = files
+
+    except Exception as e:
+        with stitch_job_lock:
+            stitch_job["state"] = "error"
+            stitch_job["message"] = str(e)
 
 
 def _parse_header(line):
@@ -121,7 +155,7 @@ class serverHandler(BaseHTTPRequestHandler):
 
 			result = {}
 
-			filePath = os.path.join("output", outputDirectory, outputFile)
+			filePath = os.path.join(BASE_DIR, "output", outputDirectory, outputFile)
 
 			print("\n")
 
@@ -134,7 +168,7 @@ class serverHandler(BaseHTTPRequestHandler):
 			else:
 
 				tempFile = self.randomString() + ".png"
-				tempFilePath = os.path.join("temp", tempFile)
+				tempFilePath = os.path.join(BASE_DIR, "temp", tempFile)
 
 				result["code"] = Utils.downloadFileScaled(source, tempFilePath, x, y, z, outputScale)
 
@@ -184,9 +218,9 @@ class serverHandler(BaseHTTPRequestHandler):
 				outputDirectory = outputDirectory.replace(newKey, value)
 				outputFile = outputFile.replace(newKey, value)
 
-			filePath = os.path.join("output", outputDirectory, outputFile)
+			filePath = os.path.join(BASE_DIR, "output", outputDirectory, outputFile)
 
-			self.writerByType(outputType).addMetadata(lock, os.path.join("output", outputDirectory), filePath, outputFile, "Map Tiles Downloader via AliFlux", "png", boundsArray, centerArray, minZoom, maxZoom, "mercator", 256 * outputScale)
+			self.writerByType(outputType).addMetadata(lock, os.path.join(BASE_DIR, "output", outputDirectory), filePath, outputFile, "Map Tiles Downloader via AliFlux", "png", boundsArray, centerArray, minZoom, maxZoom, "mercator", 256 * outputScale)
 
 			result = {}
 			result["code"] = 200
@@ -221,9 +255,9 @@ class serverHandler(BaseHTTPRequestHandler):
 				outputDirectory = outputDirectory.replace(newKey, value)
 				outputFile = outputFile.replace(newKey, value)
 
-			filePath = os.path.join("output", outputDirectory, outputFile)
+			filePath = os.path.join(BASE_DIR, "output", outputDirectory, outputFile)
 
-			self.writerByType(outputType).close(lock, os.path.join("output", outputDirectory), filePath, minZoom, maxZoom)
+			self.writerByType(outputType).close(lock, os.path.join(BASE_DIR, "output", outputDirectory), filePath, minZoom, maxZoom)
 
 			result = {}
 			result["code"] = 200
@@ -236,15 +270,63 @@ class serverHandler(BaseHTTPRequestHandler):
 			self.wfile.write(json.dumps(result).encode('utf-8'))
 			return
 
+		elif parts.path == '/stitch-tiles':
+			if not STITCH_AVAILABLE:
+				result = {"code": 500, "message": "pyvips not installed. Run: pip install pyvips[binary]"}
+				self.send_response(200)
+				self.send_header("Content-Type", "application/json")
+				self.end_headers()
+				self.wfile.write(json.dumps(result).encode('utf-8'))
+				return
+
+			outputDirectory = str(postvars['outputDirectory'][0])
+			timestamp = int(postvars['timestamp'][0])
+			minZoom = int(postvars['minZoom'][0])
+			maxZoom = int(postvars['maxZoom'][0])
+
+			outputDirectory = outputDirectory.replace('{timestamp}', str(timestamp))
+			full_output_dir = os.path.join(BASE_DIR, "output", outputDirectory)
+
+			with stitch_job_lock:
+				stitch_job["state"] = "starting"
+				stitch_job["message"] = "Starting..."
+				stitch_job["files"] = []
+
+			t = threading.Thread(target=run_stitch, args=(full_output_dir, minZoom, maxZoom), daemon=True)
+			t.start()
+
+			result = {"code": 200, "message": "Stitching started"}
+			self.send_response(200)
+			self.send_header("Content-Type", "application/json")
+			self.end_headers()
+			self.wfile.write(json.dumps(result).encode('utf-8'))
+			return
+
 	def do_GET(self):
 
-
 		parts = urlparse(self.path)
+
+		if parts.path == '/stitch-status':
+			with stitch_job_lock:
+				result = dict(stitch_job)
+			result["code"] = 200
+			self.send_response(200)
+			self.send_header("Content-Type", "application/json")
+			self.end_headers()
+			self.wfile.write(json.dumps(result).encode('utf-8'))
+			return
+
 		path = parts.path.strip('/')
 		if path == "":
 			path = "index.htm"
 
-		file = os.path.join("./UI/", path)
+		file = os.path.join(BASE_DIR, "UI", path)
+
+		if not os.path.isfile(file):
+			self.send_response(404)
+			self.end_headers()
+			return
+
 		mime = mimetypes.MimeTypes().guess_type(file)[0]
 
 		self.send_response(200)
@@ -260,6 +342,8 @@ class serverThreadedHandler(ThreadingMixIn, HTTPServer):
 
 def run():
 	print('Starting Server...')
+	os.makedirs(os.path.join(BASE_DIR, "temp"), exist_ok=True)
+	os.makedirs(os.path.join(BASE_DIR, "output"), exist_ok=True)
 	server_address = ('', 8080)
 	httpd = serverThreadedHandler(server_address, serverHandler)
 	print('Running Server...')
