@@ -37,7 +37,9 @@ $(function() {
 
 	function initializeMap() {
 
-		mapboxgl.accessToken = 'pk.eyJ1IjoiYWxpYXNocmFmIiwiYSI6ImNqdXl5MHV5YTAzNXI0NG51OWFuMGp4enQifQ.zpd2gZFwBTRqiapp1yci9g';
+		// A Mapbox token is only required if you want the search/geocoder feature to work.
+		// Get a free token at https://account.mapbox.com/ and replace the empty string below.
+		mapboxgl.accessToken = '';
 
 		map = new mapboxgl.Map({
 			container: 'map-view',
