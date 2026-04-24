@@ -1,2 +1,10 @@
 src/output/
 src/temp/
+output/
+temp/
+.claude/
+.playwright-mcp/
+__pycache__/
+*.pyc
+*.tif
+*.tiff

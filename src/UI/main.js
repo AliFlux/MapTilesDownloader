@@ -27,18 +27,11 @@ $(function() {
 
 		"Open Street Maps": "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
 		"Open Cycle Maps": "http://a.tile.opencyclemap.org/cycle/{z}/{x}/{y}.png",
-		"Open PT Transport": "http://openptmap.org/tiles/{z}/{x}/{y}.png",
 
 		"div-3": "",
 
-		"ESRI World Imagery": "http://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-		"Wikimedia Maps": "https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png",
-		"NASA GIBS": "https://map1.vis.earthdata.nasa.gov/wmts-webmerc/MODIS_Terra_CorrectedReflectance_TrueColor/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg",
-
-		"div-4": "",
-
-		"Carto Light": "http://cartodb-basemaps-c.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-		"Stamen Toner B&W": "http://a.tile.stamen.com/toner/{z}/{x}/{y}.png",
+		"ESRI World Imagery": "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+		"Carto Light": "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
 
 	};
 
@@ -48,8 +41,23 @@ $(function() {
 
 		map = new mapboxgl.Map({
 			container: 'map-view',
-			style: 'mapbox://styles/aliashraf/ck6lw9nr80lvo1ipj8zovttdx',
-			center: [-73.983652, 40.755024], 
+			style: {
+				version: 8,
+				sources: {
+					'osm': {
+						type: 'raster',
+						tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+						tileSize: 256,
+						attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+					}
+				},
+				layers: [{
+					id: 'osm-tiles',
+					type: 'raster',
+					source: 'osm'
+				}]
+			},
+			center: [-73.983652, 40.755024],
 			zoom: 12
 		});
 

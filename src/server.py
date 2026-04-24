@@ -8,11 +8,11 @@ from urllib.parse import urlparse
 from urllib.parse import parse_qs
 from urllib.parse import parse_qsl
 import urllib.request
-import cgi
+import email
+from email.message import Message
 import uuid
 import random
 import string
-from cgi import parse_header, parse_multipart
 import argparse
 import uuid
 import random
@@ -23,7 +23,7 @@ import ssl
 import glob
 import os
 import base64
-import mimetypes 
+import mimetypes
 
 from file_writer import FileWriter
 from mbtiles_writer import MbtilesWriter
@@ -32,8 +32,45 @@ from utils import Utils
 
 lock = threading.Lock()
 
+
+def _parse_header(line):
+    msg = Message()
+    msg['content-type'] = line
+    params = msg.get_params()
+    if not params:
+        return line, {}
+    main = params[0][0]
+    pdict = {k: v for k, v in params[1:]}
+    return main, pdict
+
+
+def _parse_multipart(fp, pdict):
+    boundary = pdict['boundary']
+    if isinstance(boundary, bytes):
+        boundary = boundary.decode('utf-8')
+    length = pdict.get('CONTENT-LENGTH', -1)
+    body = fp.read(length) if isinstance(length, int) and length >= 0 else fp.read()
+    msg = email.message_from_bytes(
+        f'Content-Type: multipart/form-data; boundary={boundary}\r\n\r\n'.encode() + body
+    )
+    result = {}
+    for part in msg.walk():
+        if part.get_content_maintype() == 'multipart':
+            continue
+        name = part.get_param('name', header='content-disposition')
+        if name:
+            payload = part.get_payload(decode=True)
+            if payload is not None:
+                try:
+                    value = payload.decode('utf-8')
+                except UnicodeDecodeError:
+                    value = payload.decode('latin-1')
+                result.setdefault(name, []).append(value)
+    return result
+
+
 class serverHandler(BaseHTTPRequestHandler):
-		
+
 	def randomString(self):
 		return uuid.uuid4().hex.upper()[0:6]
 
@@ -47,14 +84,13 @@ class serverHandler(BaseHTTPRequestHandler):
 
 	def do_POST(self):
 
-		ctype, pdict = cgi.parse_header(self.headers.get('Content-Type'))
-		#ctype, pdict = cgi.parse_header(self.headers['content-type'])
+		ctype, pdict = _parse_header(self.headers.get('Content-Type'))
 		pdict['boundary'] = bytes(pdict['boundary'], "utf-8")
-				
+
 		content_len = int(self.headers.get('Content-length'))
 		pdict['CONTENT-LENGTH'] = content_len
 
-		postvars = cgi.parse_multipart(self.rfile, pdict)
+		postvars = _parse_multipart(self.rfile, pdict)
 
 		parts = urlparse(self.path)
 		if parts.path == '/download-tile':
@@ -125,7 +161,7 @@ class serverHandler(BaseHTTPRequestHandler):
 			self.end_headers()
 			self.wfile.write(json.dumps(result).encode('utf-8'))
 			return
-			
+
 		elif parts.path == '/start-download':
 			outputType = str(postvars['outputType'][0])
 			outputScale = int(postvars['outputScale'][0])
@@ -162,7 +198,7 @@ class serverHandler(BaseHTTPRequestHandler):
 			self.end_headers()
 			self.wfile.write(json.dumps(result).encode('utf-8'))
 			return
-			
+
 		elif parts.path == '/end-download':
 			outputType = str(postvars['outputType'][0])
 			outputScale = int(postvars['outputScale'][0])
@@ -209,16 +245,16 @@ class serverHandler(BaseHTTPRequestHandler):
 			path = "index.htm"
 
 		file = os.path.join("./UI/", path)
-		mime = mimetypes.MimeTypes().guess_type(file)[0] 
+		mime = mimetypes.MimeTypes().guess_type(file)[0]
 
 		self.send_response(200)
 		# self.send_header("Access-Control-Allow-Origin", "*")
 		self.send_header("Content-Type", mime)
 		self.end_headers()
-		
+
 		with open(file, "rb") as f:
 			self.wfile.write(f.read())
-		
+
 class serverThreadedHandler(ThreadingMixIn, HTTPServer):
 	"""Handle requests in a separate thread."""
 
@@ -232,5 +268,5 @@ def run():
 	print("Open http://localhost:8080/ to view the application.")
 
 	httpd.serve_forever()
- 
+
 run()

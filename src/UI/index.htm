@@ -6,22 +6,22 @@
     <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
 
 	<!-- TODO replace jquery with react -->
-	<script src="jquery.min.js"></script> 
+	<script src="jquery.min.js"></script>
 
-    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.js'></script>
-    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v0.50.0/mapbox-gl.css' rel='stylesheet' />
 
 	<script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v2.3.0/mapbox-gl-geocoder.min.js'></script>
 	<script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.0.9/mapbox-gl-draw.js'></script>
 	<script src='mapbox-gl-draw-rectangle-mode.min.js'></script>
 	<link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.0.9/mapbox-gl-draw.css' type='text/css'/>
 
-	<script src='https://rawgit.com/kimmobrunfeldt/progressbar.js/1.0.0/dist/progressbar.js'></script>
+	<script src='https://cdn.jsdelivr.net/npm/progressbar.js@1.1.0/dist/progressbar.min.js'></script>
 
 	<script src="async.min.js"></script>
 	<script src="turf.min.js"></script>
 
-	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,600,600i,700,700i" rel="stylesheet"> 
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,600,600i,700,700i" rel="stylesheet">
 	<script src="materialize/js/materialize.min.js"></script>
 	<link href='materialize/css/materialize.min.css' rel='stylesheet' type='text/css' />
 
@@ -32,7 +32,7 @@
 <body>
 
 	<div id='max-height'>
-		
+
 		<div id='map-view'></div>
 
 		<div id='main-title'>Map Tiles Downloader</div>
@@ -168,18 +168,18 @@
 
 		<div class="sidebar-section">
 			<div id='progress-radial' class=''>
-	
+
 			</div>
-	
+
 			<p id='progress-subtitle' class=''>
-	
+
 			</p>
-	
+
 			<p class='tile-strip '>
 			</p>
 
 		</div>
-	
+
 		<textarea id='log-view' class="sidebar-section"></textarea>
 
 		<button class='waves-effect waves-light z-depth-0 btn-large red lighten-5 bottom-button' id='stop-button'>Stop</button>
