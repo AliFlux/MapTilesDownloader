@@ -27,34 +27,46 @@ $(function() {
 
 		"Open Street Maps": "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
 		"Open Cycle Maps": "http://a.tile.opencyclemap.org/cycle/{z}/{x}/{y}.png",
-		"Open PT Transport": "http://openptmap.org/tiles/{z}/{x}/{y}.png",
 
 		"div-3": "",
 
-		"ESRI World Imagery": "http://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-		"Wikimedia Maps": "https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png",
-		"NASA GIBS": "https://map1.vis.earthdata.nasa.gov/wmts-webmerc/MODIS_Terra_CorrectedReflectance_TrueColor/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg",
-
-		"div-4": "",
-
-		"Carto Light": "http://cartodb-basemaps-c.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png",
-		"Stamen Toner B&W": "http://a.tile.stamen.com/toner/{z}/{x}/{y}.png",
+		"ESRI World Imagery": "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+		"Carto Light": "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
 
 	};
 
 	function initializeMap() {
 
-		mapboxgl.accessToken = 'pk.eyJ1IjoiYWxpYXNocmFmIiwiYSI6ImNqdXl5MHV5YTAzNXI0NG51OWFuMGp4enQifQ.zpd2gZFwBTRqiapp1yci9g';
+		// A Mapbox token is only required if you want the search/geocoder feature to work.
+		// Get a free token at https://account.mapbox.com/ and replace the empty string below.
+		mapboxgl.accessToken = '';
 
 		map = new mapboxgl.Map({
 			container: 'map-view',
-			style: 'mapbox://styles/aliashraf/ck6lw9nr80lvo1ipj8zovttdx',
-			center: [-73.983652, 40.755024], 
+			style: {
+				version: 8,
+				sources: {
+					'osm': {
+						type: 'raster',
+						tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+						tileSize: 256,
+						attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+					}
+				},
+				layers: [{
+					id: 'osm-tiles',
+					type: 'raster',
+					source: 'osm'
+				}]
+			},
+			center: [-73.983652, 40.755024],
 			zoom: 12
 		});
 
-		geocoder = new MapboxGeocoder({ accessToken: mapboxgl.accessToken });
-		var control = map.addControl(geocoder);
+		if (mapboxgl.accessToken) {
+			geocoder = new MapboxGeocoder({ accessToken: mapboxgl.accessToken });
+			map.addControl(geocoder);
+		}
 	}
 
 	function initializeMaterialize() {
@@ -92,7 +104,7 @@ $(function() {
 	function initializeSearch() {
 		$("#search-form").submit(function(e) {
 			var location = $("#location-box").val();
-			geocoder.query(location);
+			if (geocoder) geocoder.query(location);
 
 			e.preventDefault();
 		})
@@ -105,6 +117,16 @@ $(function() {
 		})
 
 		var outputFileBox = $("#output-file-box")
+
+		function updateStitchCheckboxState() {
+			var outputType = $("#output-type").val();
+			if (outputType !== "directory") {
+				$("#stitch-checkbox").prop("checked", false).prop("disabled", true);
+			} else {
+				$("#stitch-checkbox").prop("disabled", false);
+			}
+		}
+
 		$("#output-type").change(function() {
 			var outputType = $("#output-type").val();
 			if(outputType == "mbtiles") {
@@ -114,8 +136,44 @@ $(function() {
 			} else if(outputType == "directory") {
 				outputFileBox.val("{z}/{x}/{y}.png")
 			}
+			updateStitchCheckboxState();
 		})
 
+		updateStitchCheckboxState();
+
+	}
+
+	function pollStitchStatus() {
+		return new Promise(function(resolve) {
+			var lastMessage = "";
+			var interval = setInterval(function() {
+				$.ajax({
+					url: "/stitch-status",
+					async: true,
+					type: "get",
+					dataType: 'json',
+				}).done(function(status) {
+					if (status.message !== lastMessage) {
+						lastMessage = status.message;
+						logItemRaw(status.message);
+					}
+					if (status.state === "done") {
+						clearInterval(interval);
+						for (var i = 0; i < status.files.length; i++) {
+							logItemRaw("Saved: " + status.files[i]);
+						}
+						resolve();
+					} else if (status.state === "error") {
+						clearInterval(interval);
+						resolve();
+					}
+				}).fail(function() {
+					clearInterval(interval);
+					logItemRaw("Could not reach stitch status endpoint.");
+					resolve();
+				});
+			}, 2000);
+		});
 	}
 
 	function initializeRectangleTool() {
@@ -430,8 +488,9 @@ $(function() {
 			return;
 		}
 
-		cancellationToken = false; 
+		cancellationToken = false;
 		requests = [];
+		var rateLimitWarned = false;
 
 		$("#main-sidebar").hide();
 		$("#download-sidebar").show();
@@ -523,6 +582,12 @@ $(function() {
 				if(data.code == 200) {
 					showTinyTile(data.image)
 					logItem(item.x, item.y, item.z, data.message);
+				} else if(data.code == 403 || data.code == 429) {
+					logItem(item.x, item.y, item.z, data.code + " Rate limited by tile server");
+					if(!rateLimitWarned) {
+						rateLimitWarned = true;
+						M.toast({html: 'Tile server is rate limiting requests. Try a different source or wait a few minutes.', displayLength: 8000});
+					}
 				} else {
 					logItem(item.x, item.y, item.z, data.code + " Error downloading tile");
 				}
@@ -567,7 +632,36 @@ $(function() {
 			updateProgress(allTiles.length, allTiles.length);
 			logItemRaw("All requests are done");
 
-			$("#stop-button").html("FINISH");
+			if ($("#stitch-checkbox").is(":checked")) {
+				$("#stop-button").html("STITCHING...").prop("disabled", true);
+				$("#download-phase-title").text("Stitching tiles");
+				$("#download-phase-hint").text("Building image from tiles, please wait...");
+
+				var stitchData = new FormData();
+				stitchData.append('outputDirectory', outputDirectory);
+				stitchData.append('timestamp', timestamp);
+				stitchData.append('minZoom', getMinZoom());
+				stitchData.append('maxZoom', getMaxZoom());
+
+				await $.ajax({
+					url: "/stitch-tiles",
+					async: true,
+					timeout: 30 * 1000,
+					type: "post",
+					contentType: false,
+					processData: false,
+					data: stitchData,
+					dataType: 'json',
+				});
+
+				await pollStitchStatus();
+
+				$("#download-phase-title").text("Downloading tiles");
+				$("#download-phase-hint").text("Please wait...");
+				$("#stop-button").html("FINISH").prop("disabled", false);
+			} else {
+				$("#stop-button").html("FINISH");
+			}
 		});
 
 	}

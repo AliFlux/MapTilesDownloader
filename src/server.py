@@ -8,11 +8,11 @@ from urllib.parse import urlparse
 from urllib.parse import parse_qs
 from urllib.parse import parse_qsl
 import urllib.request
-import cgi
+import email
+from email.message import Message
 import uuid
 import random
 import string
-from cgi import parse_header, parse_multipart
 import argparse
 import uuid
 import random
@@ -23,17 +23,88 @@ import ssl
 import glob
 import os
 import base64
-import mimetypes 
+import mimetypes
 
 from file_writer import FileWriter
 from mbtiles_writer import MbtilesWriter
 from repo_writer import RepoWriter
 from utils import Utils
 
+try:
+    from stitch import Stitcher
+    STITCH_AVAILABLE = True
+except ImportError:
+    STITCH_AVAILABLE = False
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 lock = threading.Lock()
 
+stitch_job = {"state": "idle", "message": "", "files": []}
+stitch_job_lock = threading.Lock()
+
+
+def run_stitch(output_dir, min_zoom, max_zoom):
+    try:
+        files = []
+        for zoom in range(min_zoom, max_zoom + 1):
+            with stitch_job_lock:
+                stitch_job["state"] = "stitching"
+                stitch_job["message"] = f"Stitching zoom level {zoom}..."
+
+            path = Stitcher.stitch_zoom_level(output_dir, zoom)
+            if path:
+                files.append(path)
+
+        with stitch_job_lock:
+            stitch_job["state"] = "done"
+            stitch_job["message"] = f"Stitched {len(files)} zoom level(s)"
+            stitch_job["files"] = files
+
+    except Exception as e:
+        with stitch_job_lock:
+            stitch_job["state"] = "error"
+            stitch_job["message"] = str(e)
+
+
+def _parse_header(line):
+    msg = Message()
+    msg['content-type'] = line
+    params = msg.get_params()
+    if not params:
+        return line, {}
+    main = params[0][0]
+    pdict = {k: v for k, v in params[1:]}
+    return main, pdict
+
+
+def _parse_multipart(fp, pdict):
+    boundary = pdict['boundary']
+    if isinstance(boundary, bytes):
+        boundary = boundary.decode('utf-8')
+    length = pdict.get('CONTENT-LENGTH', -1)
+    body = fp.read(length) if isinstance(length, int) and length >= 0 else fp.read()
+    msg = email.message_from_bytes(
+        f'Content-Type: multipart/form-data; boundary={boundary}\r\n\r\n'.encode() + body
+    )
+    result = {}
+    for part in msg.walk():
+        if part.get_content_maintype() == 'multipart':
+            continue
+        name = part.get_param('name', header='content-disposition')
+        if name:
+            payload = part.get_payload(decode=True)
+            if payload is not None:
+                try:
+                    value = payload.decode('utf-8')
+                except UnicodeDecodeError:
+                    value = payload.decode('latin-1')
+                result.setdefault(name, []).append(value)
+    return result
+
+
 class serverHandler(BaseHTTPRequestHandler):
-		
+
 	def randomString(self):
 		return uuid.uuid4().hex.upper()[0:6]
 
@@ -47,14 +118,13 @@ class serverHandler(BaseHTTPRequestHandler):
 
 	def do_POST(self):
 
-		ctype, pdict = cgi.parse_header(self.headers.get('Content-Type'))
-		#ctype, pdict = cgi.parse_header(self.headers['content-type'])
+		ctype, pdict = _parse_header(self.headers.get('Content-Type'))
 		pdict['boundary'] = bytes(pdict['boundary'], "utf-8")
-				
+
 		content_len = int(self.headers.get('Content-length'))
 		pdict['CONTENT-LENGTH'] = content_len
 
-		postvars = cgi.parse_multipart(self.rfile, pdict)
+		postvars = _parse_multipart(self.rfile, pdict)
 
 		parts = urlparse(self.path)
 		if parts.path == '/download-tile':
@@ -85,7 +155,7 @@ class serverHandler(BaseHTTPRequestHandler):
 
 			result = {}
 
-			filePath = os.path.join("output", outputDirectory, outputFile)
+			filePath = os.path.join(BASE_DIR, "output", outputDirectory, outputFile)
 
 			print("\n")
 
@@ -98,7 +168,7 @@ class serverHandler(BaseHTTPRequestHandler):
 			else:
 
 				tempFile = self.randomString() + ".png"
-				tempFilePath = os.path.join("temp", tempFile)
+				tempFilePath = os.path.join(BASE_DIR, "temp", tempFile)
 
 				result["code"] = Utils.downloadFileScaled(source, tempFilePath, x, y, z, outputScale)
 
@@ -125,7 +195,7 @@ class serverHandler(BaseHTTPRequestHandler):
 			self.end_headers()
 			self.wfile.write(json.dumps(result).encode('utf-8'))
 			return
-			
+
 		elif parts.path == '/start-download':
 			outputType = str(postvars['outputType'][0])
 			outputScale = int(postvars['outputScale'][0])
@@ -148,9 +218,9 @@ class serverHandler(BaseHTTPRequestHandler):
 				outputDirectory = outputDirectory.replace(newKey, value)
 				outputFile = outputFile.replace(newKey, value)
 
-			filePath = os.path.join("output", outputDirectory, outputFile)
+			filePath = os.path.join(BASE_DIR, "output", outputDirectory, outputFile)
 
-			self.writerByType(outputType).addMetadata(lock, os.path.join("output", outputDirectory), filePath, outputFile, "Map Tiles Downloader via AliFlux", "png", boundsArray, centerArray, minZoom, maxZoom, "mercator", 256 * outputScale)
+			self.writerByType(outputType).addMetadata(lock, os.path.join(BASE_DIR, "output", outputDirectory), filePath, outputFile, "Map Tiles Downloader via AliFlux", "png", boundsArray, centerArray, minZoom, maxZoom, "mercator", 256 * outputScale)
 
 			result = {}
 			result["code"] = 200
@@ -162,7 +232,7 @@ class serverHandler(BaseHTTPRequestHandler):
 			self.end_headers()
 			self.wfile.write(json.dumps(result).encode('utf-8'))
 			return
-			
+
 		elif parts.path == '/end-download':
 			outputType = str(postvars['outputType'][0])
 			outputScale = int(postvars['outputScale'][0])
@@ -185,9 +255,9 @@ class serverHandler(BaseHTTPRequestHandler):
 				outputDirectory = outputDirectory.replace(newKey, value)
 				outputFile = outputFile.replace(newKey, value)
 
-			filePath = os.path.join("output", outputDirectory, outputFile)
+			filePath = os.path.join(BASE_DIR, "output", outputDirectory, outputFile)
 
-			self.writerByType(outputType).close(lock, os.path.join("output", outputDirectory), filePath, minZoom, maxZoom)
+			self.writerByType(outputType).close(lock, os.path.join(BASE_DIR, "output", outputDirectory), filePath, minZoom, maxZoom)
 
 			result = {}
 			result["code"] = 200
@@ -200,30 +270,80 @@ class serverHandler(BaseHTTPRequestHandler):
 			self.wfile.write(json.dumps(result).encode('utf-8'))
 			return
 
+		elif parts.path == '/stitch-tiles':
+			if not STITCH_AVAILABLE:
+				result = {"code": 500, "message": "pyvips not installed. Run: pip install pyvips[binary]"}
+				self.send_response(200)
+				self.send_header("Content-Type", "application/json")
+				self.end_headers()
+				self.wfile.write(json.dumps(result).encode('utf-8'))
+				return
+
+			outputDirectory = str(postvars['outputDirectory'][0])
+			timestamp = int(postvars['timestamp'][0])
+			minZoom = int(postvars['minZoom'][0])
+			maxZoom = int(postvars['maxZoom'][0])
+
+			outputDirectory = outputDirectory.replace('{timestamp}', str(timestamp))
+			full_output_dir = os.path.join(BASE_DIR, "output", outputDirectory)
+
+			with stitch_job_lock:
+				stitch_job["state"] = "starting"
+				stitch_job["message"] = "Starting..."
+				stitch_job["files"] = []
+
+			t = threading.Thread(target=run_stitch, args=(full_output_dir, minZoom, maxZoom), daemon=True)
+			t.start()
+
+			result = {"code": 200, "message": "Stitching started"}
+			self.send_response(200)
+			self.send_header("Content-Type", "application/json")
+			self.end_headers()
+			self.wfile.write(json.dumps(result).encode('utf-8'))
+			return
+
 	def do_GET(self):
 
-
 		parts = urlparse(self.path)
+
+		if parts.path == '/stitch-status':
+			with stitch_job_lock:
+				result = dict(stitch_job)
+			result["code"] = 200
+			self.send_response(200)
+			self.send_header("Content-Type", "application/json")
+			self.end_headers()
+			self.wfile.write(json.dumps(result).encode('utf-8'))
+			return
+
 		path = parts.path.strip('/')
 		if path == "":
 			path = "index.htm"
 
-		file = os.path.join("./UI/", path)
-		mime = mimetypes.MimeTypes().guess_type(file)[0] 
+		file = os.path.join(BASE_DIR, "UI", path)
+
+		if not os.path.isfile(file):
+			self.send_response(404)
+			self.end_headers()
+			return
+
+		mime = mimetypes.MimeTypes().guess_type(file)[0]
 
 		self.send_response(200)
 		# self.send_header("Access-Control-Allow-Origin", "*")
 		self.send_header("Content-Type", mime)
 		self.end_headers()
-		
+
 		with open(file, "rb") as f:
 			self.wfile.write(f.read())
-		
+
 class serverThreadedHandler(ThreadingMixIn, HTTPServer):
 	"""Handle requests in a separate thread."""
 
 def run():
 	print('Starting Server...')
+	os.makedirs(os.path.join(BASE_DIR, "temp"), exist_ok=True)
+	os.makedirs(os.path.join(BASE_DIR, "output"), exist_ok=True)
 	server_address = ('', 8080)
 	httpd = serverThreadedHandler(server_address, serverHandler)
 	print('Running Server...')
@@ -232,5 +352,5 @@ def run():
 	print("Open http://localhost:8080/ to view the application.")
 
 	httpd.serve_forever()
- 
+
 run()
