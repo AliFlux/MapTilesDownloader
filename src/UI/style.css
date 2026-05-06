@@ -128,7 +128,7 @@ hr {
 	padding-right: 10px;
 }
 
-.mapboxgl-ctrl-geocoder {
+.maplibregl-ctrl-geocoder {
 	display: none !important;
 }
 

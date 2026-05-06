@@ -39,9 +39,7 @@ $(function() {
 
 		// A Mapbox token is only required if you want the search/geocoder feature to work.
 		// Get a free token at https://account.mapbox.com/ and replace the empty string below.
-		mapboxgl.accessToken = '';
-
-		map = new mapboxgl.Map({
+		map = new maplibregl.Map({
 			container: 'map-view',
 			style: {
 				version: 8,
@@ -63,10 +61,35 @@ $(function() {
 			zoom: 12
 		});
 
-		if (mapboxgl.accessToken) {
-			geocoder = new MapboxGeocoder({ accessToken: mapboxgl.accessToken });
-			map.addControl(geocoder);
-		}
+		// MapLibre Geocoder - 使用 OpenStreetMap Nominatim 作为默认地理编码服务
+		geocoder = new MaplibreGeocoder({
+			maplibregl: maplibregl,
+			marker: true,
+			showResultMarkers: true,
+			debounceSearch: 200,
+			placeholder: 'Search for a location',
+			getSuggestions: false,
+			getPlace: function(query) {
+				return fetch('https://nominatim.openstreetmap.org/search?format=geojson&q=' + encodeURIComponent(query))
+					.then(function(response) { return response.json(); })
+					.then(function(data) {
+						return {
+							type: 'FeatureCollection',
+							features: data.features.map(function(feature) {
+								return {
+									type: 'Feature',
+									geometry: feature.geometry,
+									properties: {
+										place_name: feature.properties.display_name,
+										place_type: feature.properties.type
+									}
+								};
+							})
+						};
+					});
+			}
+		});
+		map.addControl(geocoder);
 	}
 
 	function initializeMaterialize() {
@@ -225,7 +248,7 @@ $(function() {
 		var content = "X, Y, Z<br/><b>" + x + ", " + y + ", " + maxZoom + "</b><hr/>";
 		content += "Lat, Lng<br/><b>" + e.lngLat.lat + ", " + e.lngLat.lng + "</b>";
 
-        new mapboxgl.Popup()
+        new maplibregl.Popup()
             .setLngLat(e.lngLat)
             .setHTML(content)
             .addTo(map);
@@ -253,10 +276,10 @@ $(function() {
 
 	function getTileRect(x, y, zoom) {
 
-		var c1 = new mapboxgl.LngLat(tile2long(x, zoom), tile2lat(y, zoom));
-		var c2 = new mapboxgl.LngLat(tile2long(x + 1, zoom), tile2lat(y + 1, zoom));
+		var c1 = new maplibregl.LngLat(tile2long(x, zoom), tile2lat(y, zoom));
+		var c2 = new maplibregl.LngLat(tile2long(x + 1, zoom), tile2lat(y + 1, zoom));
 
-		return new mapboxgl.LngLatBounds(c1, c2);
+		return new maplibregl.LngLatBounds(c1, c2);
 	}
 
 	function getMinZoom() {
@@ -308,7 +331,7 @@ $(function() {
 
 		var bounds = coordinates.reduce(function(bounds, coord) {
 			return bounds.extend(coord);
-		}, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+		}, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
 
 		return bounds;
 	}
