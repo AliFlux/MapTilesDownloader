@@ -61,33 +61,38 @@ $(function() {
 			zoom: 12
 		});
 
-		// MapLibre Geocoder - 使用 OpenStreetMap Nominatim 作为默认地理编码服务
-		geocoder = new MaplibreGeocoder({
+		// MapLibre Geocoder - Use OpenStreetMap Nominatim as the default geocoding service
+		var nominatimGeocoderApi = {
+			forwardGeocode: function(config) {
+				var query = config.query;
+				return fetch('https://nominatim.openstreetmap.org/search?format=geojson&q=' + encodeURIComponent(query))
+					.then(function(response) { return response.json(); })
+					.then(function(data) {
+						var features = data.features.map(function(feature) {
+							return {
+								type: 'Feature',
+								geometry: feature.geometry,
+								properties: {
+									place_name: feature.properties.display_name,
+									place_type: feature.properties.type
+								}
+							};
+						});
+						return {
+							type: 'FeatureCollection',
+							features: features,
+							query: query
+						};
+					});
+			}
+		};
+
+		geocoder = new MaplibreGeocoder(nominatimGeocoderApi, {
 			maplibregl: maplibregl,
 			marker: true,
 			showResultMarkers: true,
 			debounceSearch: 200,
-			placeholder: 'Search for a location',
-			getSuggestions: false,
-			getPlace: function(query) {
-				return fetch('https://nominatim.openstreetmap.org/search?format=geojson&q=' + encodeURIComponent(query))
-					.then(function(response) { return response.json(); })
-					.then(function(data) {
-						return {
-							type: 'FeatureCollection',
-							features: data.features.map(function(feature) {
-								return {
-									type: 'Feature',
-									geometry: feature.geometry,
-									properties: {
-										place_name: feature.properties.display_name,
-										place_type: feature.properties.type
-									}
-								};
-							})
-						};
-					});
-			}
+			placeholder: 'Search for a location'
 		});
 		map.addControl(geocoder);
 	}
@@ -200,16 +205,13 @@ $(function() {
 	}
 
 	function initializeRectangleTool() {
-		
-		var modes = MapboxDraw.modes;
-		modes.draw_rectangle = DrawRectangle.default;
-
-		draw = new MapboxDraw({
-			modes: modes
+		draw = new MaplibreTerradrawControl.MaplibreTerradrawControl({
+			modes: ['rectangle', 'select', 'delete'],
+			open: false
 		});
 		map.addControl(draw);
 
-		map.on('draw.create', function (e) {
+		map.on('terradraw:finish', function () {
 			M.Toast.dismissAll();
 		});
 
@@ -217,15 +219,31 @@ $(function() {
 			startDrawing();
 		})
 
+		$("#clear-draw-button").click(function() {
+			clearDrawing();
+		})
+
 	}
 
 	function startDrawing() {
 		removeGrid();
-		draw.deleteAll();
-		draw.changeMode('draw_rectangle');
+		var drawInstance = draw.getTerraDrawInstance();
+		if (drawInstance) {
+			drawInstance.setMode('rectangle');
+		}
 
 		M.Toast.dismissAll();
 		M.toast({html: 'Click two points on the map to make a rectangle.', displayLength: 7000})
+	}
+
+	function clearDrawing() {
+		removeGrid();
+		var drawInstance = draw.getTerraDrawInstance();
+		if (drawInstance) {
+			drawInstance.clear();
+		}
+		M.Toast.dismissAll();
+		M.toast({html: 'All regions cleared.', displayLength: 3000})
 	}
 
 	function initializeGridPreview() {
@@ -312,14 +330,26 @@ $(function() {
 		return polygon;
 	}
 
+	function getDrawnFeatures() {
+		var drawInstance = draw.getTerraDrawInstance();
+		if (drawInstance) {
+			return drawInstance.getSnapshot();
+		}
+		return [];
+	}
+
 	function isTileInSelection(tileRect) {
 
 		var polygon = getPolygonByBounds(tileRect);
 
-		var areaPolygon = draw.getAll().features[0];
+		var features = getDrawnFeatures();
+		if (features.length === 0) return false;
 
-		if(turf.booleanDisjoint(polygon, areaPolygon) == false) {
-			return true;
+		for (var i = 0; i < features.length; i++) {
+			var areaPolygon = features[i];
+			if (turf.booleanDisjoint(polygon, areaPolygon) == false) {
+				return true;
+			}
 		}
 
 		return false;
@@ -327,11 +357,18 @@ $(function() {
 
 	function getBounds() {
 
-		var coordinates = draw.getAll().features[0].geometry.coordinates[0];
+		var features = getDrawnFeatures();
+		if (features.length === 0) return null;
 
-		var bounds = coordinates.reduce(function(bounds, coord) {
+		var allCoordinates = [];
+		for (var i = 0; i < features.length; i++) {
+			var coords = features[i].geometry.coordinates[0];
+			allCoordinates = allCoordinates.concat(coords);
+		}
+
+		var bounds = allCoordinates.reduce(function(bounds, coord) {
 			return bounds.extend(coord);
-		}, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
+		}, new maplibregl.LngLatBounds(allCoordinates[0], allCoordinates[0]));
 
 		return bounds;
 	}
@@ -339,6 +376,9 @@ $(function() {
 	function getGrid(zoomLevel) {
 
 		var bounds = getBounds();
+		if (!bounds) {
+			return [];
+		}
 
 		var rects = [];
 
@@ -392,12 +432,17 @@ $(function() {
 		var maxZoom = getMaxZoom();
 		var grid = getGrid(maxZoom);
 
-		var pointsCollection = []
+		if (grid.length === 0) {
+			M.toast({html: 'No tiles to preview. Please select a region first.', displayLength: 3000});
+			return;
+		}
 
-		for(var i in grid) {
+		// 创建 FeatureCollection 来包含所有瓦片的多边形
+		var features = [];
+		for(var i = 0; i < grid.length; i++) {
 			var feature = grid[i];
 			var array = getArrayByBounds(feature.rect);
-			pointsCollection.push(array);
+			features.push(turf.polygon([array]));
 		}
 
 		removeGrid();
@@ -407,7 +452,7 @@ $(function() {
 			'type': 'line',
 			'source': {
 				'type': 'geojson',
-				'data': turf.polygon(pointsCollection),
+				'data': turf.featureCollection(features),
 			},
 			'layout': {},
 			'paint': {
@@ -506,7 +551,7 @@ $(function() {
 
 	async function startDownloading() {
 
-		if(draw.getAll().features.length == 0) {
+		if(getDrawnFeatures().length == 0) {
 			M.toast({html: 'You need to select a region first.', displayLength: 3000})
 			return;
 		}
