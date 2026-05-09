@@ -1,0 +1,19 @@
+{
+  "name": "map-tiles-downloader-ui",
+  "version": "1.0.0",
+  "description": "Map Tiles Downloader Web UI",
+  "private": true,
+  "dependencies": {
+    "async": "^3.2.5",
+    "jquery": "^3.7.1",
+    "maplibre-gl": "^5.4.0",
+    "@maplibre/maplibre-gl-geocoder": "^1.8.0",
+    "@turf/turf": "^6.5.0",
+    "materialize-css": "^1.0.0",
+    "progressbar.js": "^1.1.0",
+    "@watergis/maplibre-gl-terradraw": "^1.13.1"
+  },
+  "scripts": {
+    "start": "npx serve ."
+  }
+}
